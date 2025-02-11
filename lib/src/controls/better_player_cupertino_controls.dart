@@ -43,6 +43,14 @@ class _BetterPlayerCupertinoControlsState
   BetterPlayerController? _betterPlayerController;
   StreamSubscription? _controlsVisibilityStreamSubscription;
 
+  // Add variables for skip indicators
+  bool _showSkipIndicator = false;
+  bool _isSkipForward = false;
+  Timer? _skipIndicatorTimer;
+
+  // Add a variable to store the tap position
+  Offset? _doubleTapPosition;
+
   BetterPlayerControlsConfiguration get _controlsConfiguration =>
       widget.controlsConfiguration;
 
@@ -102,31 +110,114 @@ class _BetterPlayerCupertinoControlsState
         barHeight,
       ),
     ]);
-    return GestureDetector(
-      onTap: () {
-        if (BetterPlayerMultipleGestureDetector.of(context) != null) {
-          BetterPlayerMultipleGestureDetector.of(context)!.onTap?.call();
-        }
-        controlsNotVisible
-            ? cancelAndRestartTimer()
-            : changePlayerControlsNotVisible(true);
-      },
-      onDoubleTap: () {
-        if (BetterPlayerMultipleGestureDetector.of(context) != null) {
-          BetterPlayerMultipleGestureDetector.of(context)!.onDoubleTap?.call();
-        }
-        cancelAndRestartTimer();
-        _onPlayPause();
-      },
-      onLongPress: () {
-        if (BetterPlayerMultipleGestureDetector.of(context) != null) {
-          BetterPlayerMultipleGestureDetector.of(context)!.onLongPress?.call();
-        }
-      },
-      child: AbsorbPointer(
-          absorbing: controlsNotVisible,
-          child:
-              isFullScreen ? SafeArea(child: controlsColumn) : controlsColumn),
+
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () {
+            if (BetterPlayerMultipleGestureDetector.of(context) != null) {
+              BetterPlayerMultipleGestureDetector.of(context)!.onTap?.call();
+            }
+            controlsNotVisible
+                ? cancelAndRestartTimer()
+                : changePlayerControlsNotVisible(true);
+          },
+          onDoubleTapDown: (details) {
+            // Store the position of the double tap
+            _doubleTapPosition = details.globalPosition;
+          },
+          onDoubleTap: () {
+            if (BetterPlayerMultipleGestureDetector.of(context) != null) {
+              BetterPlayerMultipleGestureDetector.of(context)!
+                  .onDoubleTap
+                  ?.call();
+            }
+            cancelAndRestartTimer();
+
+            // Determine if the tap was on the left or right side of the screen
+            if (_doubleTapPosition != null) {
+              final screenWidth = MediaQuery.of(context).size.width;
+              if (_doubleTapPosition!.dx < screenWidth / 2) {
+                // Double tap on the left side: skip backward
+                skipBack();
+                _showSkipIndicator = true;
+                _isSkipForward = false;
+              } else {
+                // Double tap on the right side: skip forward
+                skipForward();
+                _showSkipIndicator = true;
+                _isSkipForward = true;
+              }
+
+              // Start a timer to hide the indicator after 1 second
+              _skipIndicatorTimer?.cancel();
+              _skipIndicatorTimer = Timer(const Duration(seconds: 1), () {
+                setState(() {
+                  _showSkipIndicator = false;
+                });
+              });
+
+              // Update the UI to show the indicator
+              setState(() {});
+            }
+          },
+          onLongPress: () {
+            if (BetterPlayerMultipleGestureDetector.of(context) != null) {
+              BetterPlayerMultipleGestureDetector.of(context)!
+                  .onLongPress
+                  ?.call();
+            }
+          },
+          child: AbsorbPointer(
+              absorbing: controlsNotVisible,
+              child: isFullScreen
+                  ? SafeArea(child: controlsColumn)
+                  : controlsColumn),
+        ),
+
+        // Add skip indicator overlay
+        if (_showSkipIndicator)
+          Positioned.fill(
+            child: Align(
+              alignment:
+                  _isSkipForward ? Alignment.centerRight : Alignment.centerLeft,
+              child: AnimatedOpacity(
+                opacity: _showSkipIndicator ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  margin: EdgeInsets.symmetric(
+                    horizontal: isFullScreen ? 56 : 24,
+                  ), // Add margin for better positioning
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(153),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isSkipForward ? Icons.fast_forward : Icons.fast_rewind,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(
+                          width: 8), // Add spacing between icon and text
+                      Text(
+                        "10s",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -142,6 +233,7 @@ class _BetterPlayerCupertinoControlsState
     _expandCollapseTimer?.cancel();
     _initTimer?.cancel();
     _controlsVisibilityStreamSubscription?.cancel();
+    _skipIndicatorTimer?.cancel();
   }
 
   @override
@@ -440,14 +532,14 @@ class _BetterPlayerCupertinoControlsState
       child: Container(
         height: barHeight,
         color: Colors.transparent,
-        margin: const EdgeInsets.only(left: 10.0),
+        // margin: const EdgeInsets.only(left: 10.0),
         padding: const EdgeInsets.symmetric(
           horizontal: 8,
         ),
         child: Icon(
           _controlsConfiguration.skipBackIcon,
           color: iconColor,
-          size: barHeight * 0.4,
+          size: barHeight * 0.5,
         ),
       ),
     );
@@ -460,11 +552,11 @@ class _BetterPlayerCupertinoControlsState
         height: barHeight,
         color: Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        margin: const EdgeInsets.only(right: 8.0),
+        // margin: const EdgeInsets.only(right: 8.0),
         child: Icon(
           _controlsConfiguration.skipForwardIcon,
           color: iconColor,
-          size: barHeight * 0.4,
+          size: barHeight * 0.5,
         ),
       ),
     );
