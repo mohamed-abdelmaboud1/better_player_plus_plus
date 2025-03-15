@@ -309,8 +309,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
     final int height = track.height ?? 0;
     final int bitrate = track.bitrate ?? 0;
     final String mimeType = (track.mimeType ?? '').replaceAll('video/', '');
-    final String trackName = preferredName ??
-        "${width}x$height ${BetterPlayerUtils.formatBitrate(bitrate)} $mimeType";
+    final String trackName = preferredName ?? "${height}p";
 
     final BetterPlayerAsmsTrack? selectedTrack =
         betterPlayerController!.betterPlayerAsmsTrack;
@@ -330,8 +329,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
                 visible: isSelected,
                 child: Icon(
                   Icons.check_outlined,
-                  color:
-                      betterPlayerControlsConfiguration.overflowModalTextColor,
+                  color: Colors.green,
                 )),
             const SizedBox(width: 16),
             Text(
@@ -436,7 +434,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
 
   TextStyle _getOverflowMenuElementTextStyle(bool isSelected) {
     return TextStyle(
-      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      fontWeight: isSelected ? FontWeight.bold : FontWeight.bold,
       color: isSelected
           ? betterPlayerControlsConfiguration.overflowModalTextColor
           : betterPlayerControlsConfiguration.overflowModalTextColor
